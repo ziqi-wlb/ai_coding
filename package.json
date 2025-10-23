@@ -1,0 +1,13 @@
+{
+  "name": "moonlight-expense-tracker",
+  "version": "1.0.0",
+  "description": "月光生活家 - 手机端H5记账应用",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": ["expense", "tracker", "mobile", "h5", "记账"],
+  "author": "月光生活家",
+  "license": "MIT"
+}
