@@ -5,9 +5,16 @@
   "main": "index.html",
   "scripts": {
     "start": "python -m http.server 8000",
-    "dev": "python -m http.server 8000"
+    "dev": "python -m http.server 8000",
+    "build": "echo 'No build process needed for static files'",
+    "serve": "python -m http.server 8000"
   },
-  "keywords": ["expense", "tracker", "mobile", "h5", "记账"],
+  "keywords": ["expense", "tracker", "mobile", "h5", "记账", "AI", "deepseek"],
   "author": "月光生活家",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }

@@ -7,8 +7,19 @@ class ExpenseTracker {
         this.currentTab = 'add';
         this.selectedMood = null;
         this.uploadedImages = [];
+        this.deepseekApiKey = this.getApiKey();
         
         this.init();
+    }
+
+    getApiKey() {
+        // Get API key from window config (browser environment)
+        if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.DEEPSEEK_API_KEY) {
+            return window.APP_CONFIG.DEEPSEEK_API_KEY;
+        }
+        
+        // Return null to disable AI features silently
+        return null;
     }
 
     init() {
@@ -16,7 +27,6 @@ class ExpenseTracker {
         this.setDefaultDate();
         this.updateStatistics();
         this.updateTrendChart();
-        this.updateMoodHistory();
     }
 
     setupEventListeners() {
@@ -33,13 +43,10 @@ class ExpenseTracker {
             btn.addEventListener('click', (e) => this.switchTrendPeriod(e.target.dataset.period));
         });
 
-        // Mood buttons
+        // Mood buttons in expense form
         document.querySelectorAll('.mood-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.selectMood(e.target.dataset.mood));
         });
-
-        // Save mood
-        document.getElementById('saveMood').addEventListener('click', () => this.saveMood());
 
         // Budget form
         document.getElementById('budgetForm').addEventListener('submit', (e) => this.addBudget(e));
@@ -69,11 +76,11 @@ class ExpenseTracker {
 
         this.currentTab = tabName;
 
-        // Update charts when switching to stats/trend/budget/history tabs
+        // Update charts when switching to stats/insights/budget/history tabs
         if (tabName === 'stats') {
             this.updateStatistics();
-        } else if (tabName === 'trend') {
-            this.updateTrendChart();
+        } else if (tabName === 'insights') {
+            this.updateMoodStats();
         } else if (tabName === 'budget') {
             this.updateBudgetList();
         } else if (tabName === 'history') {
@@ -101,6 +108,8 @@ class ExpenseTracker {
             date: date,
             note: note,
             images: [...this.uploadedImages],
+            mood: this.selectedMood,
+            moodNote: document.getElementById('moodNote').value,
             timestamp: new Date().toISOString()
         };
 
@@ -115,6 +124,8 @@ class ExpenseTracker {
         this.setDefaultDate();
         this.uploadedImages = [];
         this.updateImagePreview();
+        this.selectedMood = null;
+        document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('selected'));
     }
 
     saveExpenses() {
@@ -124,7 +135,7 @@ class ExpenseTracker {
     updateStatistics() {
         this.updateCategoryChart();
         this.updateCategoryList();
-        this.updateMoodStats();
+        this.updateTrendChart();
     }
 
     updateCategoryChart() {
@@ -282,64 +293,7 @@ class ExpenseTracker {
         this.selectedMood = mood;
     }
 
-    saveMood() {
-        const note = document.getElementById('moodNote').value.trim();
-        
-        if (!this.selectedMood) {
-            this.showMessage('请选择心情', 'error');
-            return;
-        }
 
-        const moodEntry = {
-            id: Date.now(),
-            mood: this.selectedMood,
-            note: note,
-            date: new Date().toISOString().split('T')[0],
-            timestamp: new Date().toISOString()
-        };
-
-        this.moods.push(moodEntry);
-        localStorage.setItem('moods', JSON.stringify(this.moods));
-        
-        this.showMessage('心情记录成功！', 'success');
-        this.updateMoodHistory();
-        this.resetMoodForm();
-    }
-
-    resetMoodForm() {
-        document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('selected'));
-        document.getElementById('moodNote').value = '';
-        this.selectedMood = null;
-    }
-
-    updateMoodHistory() {
-        const moodHistory = document.getElementById('moodHistory');
-        const recentMoods = this.moods.slice(-10).reverse();
-
-        if (recentMoods.length === 0) {
-            moodHistory.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">还没有心情记录，快来记录今天的心情吧！</p>';
-            return;
-        }
-
-        const moodEmojis = {
-            happy: '😊',
-            sad: '😢',
-            angry: '😠',
-            excited: '🤩',
-            worried: '😰',
-            calm: '😌'
-        };
-
-        moodHistory.innerHTML = recentMoods.map(mood => `
-            <div class="mood-entry">
-                <div class="mood-entry-header">
-                    <span>${moodEmojis[mood.mood]} ${mood.mood}</span>
-                    <span class="mood-date">${mood.date}</span>
-                </div>
-                ${mood.note ? `<div class="mood-text">${mood.note}</div>` : ''}
-            </div>
-        `).join('');
-    }
 
     showMessage(message, type = 'success') {
         // Remove existing message
@@ -635,7 +589,10 @@ class ExpenseTracker {
     updateMoodSummary() {
         const moodSummary = document.getElementById('moodSummary');
         
-        if (this.moods.length === 0) {
+        // Get expenses with mood data
+        const expensesWithMood = this.expenses.filter(expense => expense.mood);
+        
+        if (expensesWithMood.length === 0) {
             moodSummary.innerHTML = `
                 <h3>心情统计</h3>
                 <p style="text-align: center; color: #666; padding: 20px;">还没有心情记录，快去记录你的心情吧！</p>
@@ -643,18 +600,18 @@ class ExpenseTracker {
             return;
         }
 
-        // Calculate mood statistics
+        // Calculate mood statistics from expense records
         const moodStats = {};
-        this.moods.forEach(mood => {
-            if (!moodStats[mood.mood]) {
-                moodStats[mood.mood] = {
+        expensesWithMood.forEach(expense => {
+            if (!moodStats[expense.mood]) {
+                moodStats[expense.mood] = {
                     count: 0,
                     totalScore: 0,
                     avgScore: 0
                 };
             }
-            moodStats[mood.mood].count++;
-            moodStats[mood.mood].totalScore += this.getMoodScore(mood.mood);
+            moodStats[expense.mood].count++;
+            moodStats[expense.mood].totalScore += this.getMoodScore(expense.mood);
         });
 
         // Calculate average scores
@@ -693,31 +650,22 @@ class ExpenseTracker {
         const moodExpenseData = {};
         const currentMonth = new Date().toISOString().slice(0, 7);
         
-        // Get expenses from current month
+        // Get expenses from current month with mood data
         const monthlyExpenses = this.expenses.filter(expense => 
-            expense.date.startsWith(currentMonth)
+            expense.date.startsWith(currentMonth) && expense.mood
         );
 
-        // Get moods from current month
-        const monthlyMoods = this.moods.filter(mood => 
-            mood.date.startsWith(currentMonth)
-        );
-
-        // Create mood-expense correlation
-        monthlyMoods.forEach(mood => {
-            const moodDate = mood.date;
-            const dayExpenses = monthlyExpenses.filter(expense => expense.date === moodDate);
-            const totalAmount = dayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-            
-            if (!moodExpenseData[mood.mood]) {
-                moodExpenseData[mood.mood] = {
+        // Create mood-expense correlation from expense records
+        monthlyExpenses.forEach(expense => {
+            if (!moodExpenseData[expense.mood]) {
+                moodExpenseData[expense.mood] = {
                     totalAmount: 0,
                     count: 0,
                     avgAmount: 0
                 };
             }
-            moodExpenseData[mood.mood].totalAmount += totalAmount;
-            moodExpenseData[mood.mood].count++;
+            moodExpenseData[expense.mood].totalAmount += expense.amount;
+            moodExpenseData[expense.mood].count++;
         });
 
         // Calculate average amounts
@@ -780,99 +728,251 @@ class ExpenseTracker {
         });
     }
 
-    updateMoodInsights() {
+    async updateMoodInsights() {
         const moodInsights = document.getElementById('moodInsights');
         
-        if (this.moods.length === 0) {
-            moodInsights.innerHTML = `
-                <h3>心情消费洞察</h3>
-                <p style="text-align: center; color: #666; padding: 20px;">记录更多心情数据，获取个性化洞察</p>
-            `;
-            return;
-        }
-
-        // Calculate insights
-        const insights = this.calculateMoodInsights();
-        
+        // Show loading state
         moodInsights.innerHTML = `
-            <h3>心情消费洞察</h3>
-            ${insights.map(insight => `
-                <div class="insight-item">
-                    <div class="insight-text">${insight}</div>
-                </div>
-            `).join('')}
+            <h3>dots-llm分析</h3>
+            <div style="text-align: center; color: #666; padding: 20px;">
+                <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #667eea; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <p style="margin-top: 10px;">dots-llm正在分析你的消费数据...</p>
+            </div>
         `;
+
+        try {
+            // Calculate insights
+            const insights = await this.calculateMoodInsights();
+            
+            moodInsights.innerHTML = `
+                <h3>dots-llm洞察</h3>
+                ${insights.map(insight => `
+                    <div class="insight-item">
+                        ${insight}
+                    </div>
+                `).join('')}
+            `;
+        } catch (error) {
+            console.error('Error updating mood insights:', error);
+            moodInsights.innerHTML = `
+                <h3>dots-llm分析</h3>
+                <div class="insight-item">
+                    <div class="insight-text">暂时无法获取dots-llm洞察，请稍后再试</div>
+                </div>
+            `;
+        }
     }
 
-    calculateMoodInsights() {
+    async calculateMoodInsights() {
         const insights = [];
         const currentMonth = new Date().toISOString().slice(0, 7);
         
-        // Get current month data
+        // Get current month data with mood
         const monthlyExpenses = this.expenses.filter(expense => 
-            expense.date.startsWith(currentMonth)
-        );
-        const monthlyMoods = this.moods.filter(mood => 
-            mood.date.startsWith(currentMonth)
+            expense.date.startsWith(currentMonth) && expense.mood
         );
 
-        if (monthlyMoods.length === 0) {
-            insights.push('本月还没有心情记录，建议多记录心情来了解消费模式');
+        if (monthlyExpenses.length === 0) {
+            insights.push('本月还没有心情记录，建议多记录心情来了解消费模式，让dots-llm为你提供更精准的分析');
             return insights;
         }
 
+        // Prepare data for DeepSeek analysis
+        const analysisData = this.prepareAnalysisData(monthlyExpenses);
+        
+        try {
+            // Get AI insights from DeepSeek
+            const aiInsights = await this.getDeepSeekInsights(analysisData);
+            insights.push(...aiInsights);
+        } catch (error) {
+            console.error('DeepSeek API error:', error);
+            // Fallback to basic insights
+            insights.push(...this.getBasicInsights(monthlyExpenses));
+        }
+
+        return insights;
+    }
+
+    prepareAnalysisData(monthlyExpenses) {
         // Calculate mood-expense correlation
         const moodExpenseData = {};
-        monthlyMoods.forEach(mood => {
-            const moodDate = mood.date;
-            const dayExpenses = monthlyExpenses.filter(expense => expense.date === moodDate);
-            const totalAmount = dayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-            
-            if (!moodExpenseData[mood.mood]) {
-                moodExpenseData[mood.mood] = [];
+        const categoryData = {};
+        const dailyData = {};
+        
+        monthlyExpenses.forEach(expense => {
+            // Mood data
+            if (!moodExpenseData[expense.mood]) {
+                moodExpenseData[expense.mood] = { amounts: [], count: 0 };
             }
-            moodExpenseData[mood.mood].push(totalAmount);
+            moodExpenseData[expense.mood].amounts.push(expense.amount);
+            moodExpenseData[expense.mood].count++;
+            
+            // Category data
+            if (!categoryData[expense.category]) {
+                categoryData[expense.category] = { amounts: [], count: 0 };
+            }
+            categoryData[expense.category].amounts.push(expense.amount);
+            categoryData[expense.category].count++;
+            
+            // Daily data
+            if (!dailyData[expense.date]) {
+                dailyData[expense.date] = { amount: 0, mood: expense.mood, count: 0 };
+            }
+            dailyData[expense.date].amount += expense.amount;
+            dailyData[expense.date].count++;
         });
 
-        // Generate insights
+        // Calculate averages
+        const moodAverages = {};
+        Object.keys(moodExpenseData).forEach(mood => {
+            const amounts = moodExpenseData[mood].amounts;
+            moodAverages[mood] = {
+                avgAmount: amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length,
+                totalAmount: amounts.reduce((sum, amount) => sum + amount, 0),
+                count: amounts.length
+            };
+        });
+
+        const categoryAverages = {};
+        Object.keys(categoryData).forEach(category => {
+            const amounts = categoryData[category].amounts;
+            categoryAverages[category] = {
+                avgAmount: amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length,
+                totalAmount: amounts.reduce((sum, amount) => sum + amount, 0),
+                count: amounts.length
+            };
+        });
+
+        return {
+            moodAverages,
+            categoryAverages,
+            dailyData,
+            totalExpenses: monthlyExpenses.length,
+            totalAmount: monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0)
+        };
+    }
+
+    async getDeepSeekInsights(analysisData) {
+        // Check if API key is available
+        if (!this.deepseekApiKey) {
+            throw new Error('DeepSeek API key not configured');
+        }
+
+        const prompt = this.buildAnalysisPrompt(analysisData);
+        
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.deepseekApiKey}`
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一个专业的消费心理分析师，擅长分析用户的消费行为与心情的关系。请用温暖、贴心的语言给出个性化的消费建议。'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                max_tokens: 1000,
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices[0].message.content;
+        
+        // Parse AI response into insights
+        return this.parseAIResponse(aiResponse);
+    }
+
+    buildAnalysisPrompt(analysisData) {
+        const { moodAverages, categoryAverages, totalExpenses, totalAmount } = analysisData;
+        
+        let prompt = `请分析以下消费数据，给出个性化的消费洞察和建议：
+
+用户本月消费概况：
+- 总消费次数：${totalExpenses}次
+- 总消费金额：¥${totalAmount.toFixed(2)}
+
+心情消费分析：`;
+
+        Object.entries(moodAverages).forEach(([mood, data]) => {
+            prompt += `\n- ${this.getMoodName(mood)}：平均¥${data.avgAmount.toFixed(2)}，共${data.count}次`;
+        });
+
+        prompt += `\n\n消费分类分析：`;
+        Object.entries(categoryAverages).forEach(([category, data]) => {
+            prompt += `\n- ${category}：平均¥${data.avgAmount.toFixed(2)}，共${data.count}次`;
+        });
+
+        prompt += `\n\n请基于这些数据，给出3-5条个性化的消费洞察和建议，包括：
+1. 心情与消费的关系分析
+2. 消费习惯的优化建议
+3. 情绪管理的建议
+4. 预算规划的建议
+
+请用温暖、贴心的语言，像朋友一样给出建议。`;
+
+        return prompt;
+    }
+
+    parseAIResponse(aiResponse) {
+        // Split response into individual insights
+        const insights = aiResponse.split('\n').filter(line => 
+            line.trim() && 
+            !line.match(/^\d+\./) && 
+            line.length > 10
+        ).map(line => line.trim());
+
+        // If no insights found, try alternative parsing
+        if (insights.length === 0) {
+            const sentences = aiResponse.split(/[。！？]/).filter(s => s.trim().length > 10);
+            return sentences.slice(0, 5).map(sentence => 
+                `<div class="insight-text">${sentence.trim()}</div>`
+            );
+        }
+
+        return insights.slice(0, 5).map(insight => 
+            `<div class="insight-text">${insight}</div>`
+        );
+    }
+
+    getBasicInsights(monthlyExpenses) {
+        const insights = [];
+        
+        // Calculate mood-expense correlation
+        const moodExpenseData = {};
+        monthlyExpenses.forEach(expense => {
+            if (!moodExpenseData[expense.mood]) {
+                moodExpenseData[expense.mood] = [];
+            }
+            moodExpenseData[expense.mood].push(expense.amount);
+        });
+
+        // Generate basic insights
         const moodAverages = {};
         Object.keys(moodExpenseData).forEach(mood => {
             const amounts = moodExpenseData[mood];
             moodAverages[mood] = amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length;
         });
 
-        // Find highest and lowest spending moods
         const sortedMoods = Object.entries(moodAverages).sort(([,a], [,b]) => b - a);
         
         if (sortedMoods.length > 0) {
             const [highestMood, highestAmount] = sortedMoods[0];
             const [lowestMood, lowestAmount] = sortedMoods[sortedMoods.length - 1];
             
-            insights.push(`<span class="insight-highlight">${this.getMoodName(highestMood)}</span>时平均消费最高，达到¥${highestAmount.toFixed(2)}`);
-            insights.push(`<span class="insight-highlight">${this.getMoodName(lowestMood)}</span>时消费最理性，平均¥${lowestAmount.toFixed(2)}`);
-        }
-
-        // Calculate overall mood score
-        const totalMoodScore = monthlyMoods.reduce((sum, mood) => sum + this.getMoodScore(mood.mood), 0);
-        const avgMoodScore = totalMoodScore / monthlyMoods.length;
-        
-        if (avgMoodScore >= 4) {
-            insights.push('本月整体心情<span class="insight-highlight">非常积极</span>，继续保持好心情！');
-        } else if (avgMoodScore >= 3) {
-            insights.push('本月心情<span class="insight-highlight">比较稳定</span>，消费也比较理性');
-        } else {
-            insights.push('本月心情<span class="insight-highlight">需要关注</span>，建议多做一些让自己开心的事情');
-        }
-
-        // Category insights
-        const categoryTotals = {};
-        monthlyExpenses.forEach(expense => {
-            categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
-        });
-        
-        const topCategory = Object.entries(categoryTotals).sort(([,a], [,b]) => b - a)[0];
-        if (topCategory) {
-            insights.push(`本月在<span class="insight-highlight">${topCategory[0]}</span>上花费最多，共¥${topCategory[1].toFixed(2)}`);
+            insights.push(`<div class="insight-text"><span class="insight-highlight">${this.getMoodName(highestMood)}</span>时平均消费最高，达到¥${highestAmount.toFixed(2)}</div>`);
+            insights.push(`<div class="insight-text"><span class="insight-highlight">${this.getMoodName(lowestMood)}</span>时消费最理性，平均¥${lowestAmount.toFixed(2)}</div>`);
         }
 
         return insights;

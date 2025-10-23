@@ -18,11 +18,10 @@
         <!-- Navigation -->
         <nav class="nav-tabs">
             <button class="nav-tab active" data-tab="add">记账</button>
-            <button class="nav-tab" data-tab="history">历史</button>
-            <button class="nav-tab" data-tab="stats">统计</button>
-            <button class="nav-tab" data-tab="trend">趋势</button>
             <button class="nav-tab" data-tab="budget">预算</button>
-            <button class="nav-tab" data-tab="mood">心情</button>
+            <button class="nav-tab" data-tab="stats">统计</button>
+            <button class="nav-tab" data-tab="insights">dots-llm</button>
+            <button class="nav-tab" data-tab="history">历史</button>
         </nav>
 
         <!-- Add Expense Tab -->
@@ -63,6 +62,23 @@
                         <label for="imageUpload">上传图片</label>
                         <input type="file" id="imageUpload" accept="image/*" multiple>
                         <div class="image-preview" id="imagePreview"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>今天的心情</label>
+                        <div class="mood-options">
+                            <button type="button" class="mood-btn" data-mood="happy">😊 开心</button>
+                            <button type="button" class="mood-btn" data-mood="sad">😢 难过</button>
+                            <button type="button" class="mood-btn" data-mood="angry">😠 生气</button>
+                            <button type="button" class="mood-btn" data-mood="excited">🤩 兴奋</button>
+                            <button type="button" class="mood-btn" data-mood="worried">😰 担心</button>
+                            <button type="button" class="mood-btn" data-mood="calm">😌 平静</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="moodNote">心情备注</label>
+                        <textarea id="moodNote" placeholder="记录今天的心情和感受..."></textarea>
                     </div>
                     
                     <button type="submit" class="submit-btn">记录消费</button>
@@ -115,7 +131,19 @@
                 </div>
             </div>
             
-            <h2>心情消费分析</h2>
+            <h2>消费趋势</h2>
+            <div class="trend-controls">
+                <button class="trend-btn active" data-period="7">最近7天</button>
+                <button class="trend-btn" data-period="30">最近30天</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Dots AI Tab -->
+        <div class="tab-content" id="insights">
+            <h2>dots-llm - 心情消费分析</h2>
             <div class="mood-stats-container">
                 <div class="mood-summary" id="moodSummary">
                     <!-- Mood summary will be displayed here -->
@@ -126,18 +154,6 @@
                 <div class="mood-insights" id="moodInsights">
                     <!-- Mood insights will be displayed here -->
                 </div>
-            </div>
-        </div>
-
-        <!-- Trend Tab -->
-        <div class="tab-content" id="trend">
-            <h2>消费趋势</h2>
-            <div class="trend-controls">
-                <button class="trend-btn active" data-period="7">最近7天</button>
-                <button class="trend-btn" data-period="30">最近30天</button>
-            </div>
-            <div class="chart-container">
-                <canvas id="trendChart"></canvas>
             </div>
         </div>
 
@@ -175,30 +191,6 @@
             </div>
         </div>
 
-        <!-- Mood Tab -->
-        <div class="tab-content" id="mood">
-            <h2>消费心情记录</h2>
-            <div class="mood-form">
-                <div class="mood-selector">
-                    <label>今天的心情：</label>
-                    <div class="mood-options">
-                        <button class="mood-btn" data-mood="happy">😊 开心</button>
-                        <button class="mood-btn" data-mood="sad">😢 难过</button>
-                        <button class="mood-btn" data-mood="angry">😠 生气</button>
-                        <button class="mood-btn" data-mood="excited">🤩 兴奋</button>
-                        <button class="mood-btn" data-mood="worried">😰 担心</button>
-                        <button class="mood-btn" data-mood="calm">😌 平静</button>
-                    </div>
-                </div>
-                <div class="mood-note">
-                    <textarea id="moodNote" placeholder="记录今天的心情和感受..."></textarea>
-                    <button id="saveMood" class="submit-btn">保存心情</button>
-                </div>
-            </div>
-            <div class="mood-history" id="moodHistory">
-                <!-- Mood history will be displayed here -->
-            </div>
-        </div>
     </div>
 
     <!-- Image Modal -->
@@ -207,6 +199,7 @@
         <img id="modalImage" src="" alt="">
     </div>
 
+    <script src="config.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

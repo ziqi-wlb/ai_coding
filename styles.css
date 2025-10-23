@@ -219,30 +219,12 @@ body {
     border-color: #667eea;
 }
 
-/* Mood section */
-.mood-form {
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-}
-
-.mood-selector {
-    margin-bottom: 20px;
-}
-
-.mood-selector label {
-    display: block;
-    margin-bottom: 10px;
-    font-weight: 600;
-    color: #555;
-}
-
+/* Mood section integrated into expense form */
 .mood-options {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
+    margin-top: 10px;
 }
 
 .mood-btn {
@@ -264,53 +246,6 @@ body {
     background: #667eea;
     color: white;
     border-color: #667eea;
-}
-
-.mood-note textarea {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 16px;
-    margin-bottom: 15px;
-    resize: vertical;
-    min-height: 100px;
-}
-
-.mood-history {
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.mood-entry {
-    padding: 15px;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    background: #f8f9fa;
-}
-
-.mood-entry:last-child {
-    margin-bottom: 0;
-}
-
-.mood-entry-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.mood-date {
-    font-size: 12px;
-    color: #666;
-}
-
-.mood-text {
-    color: #333;
-    line-height: 1.5;
 }
 
 /* Responsive design */
@@ -744,6 +679,12 @@ body {
 .insight-highlight {
     font-weight: 600;
     color: #667eea;
+}
+
+/* Loading animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Success message */
